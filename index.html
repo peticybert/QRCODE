@@ -1,0 +1,879 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>QR 코드 생성기</title>
+  <style>
+    :root{
+      --bg:#0b1220;
+      --card:#101a33;
+      --muted:#93a4c7;
+      --text:#e8eeff;
+      --line:rgba(255,255,255,.12);
+      --accent:#6aa6ff;
+      --danger:#ff6a7a;
+      --ok:#42d392;
+      --shadow: 0 18px 60px rgba(0,0,0,.45);
+      --radius: 18px;
+    }
+    *{ box-sizing:border-box; }
+    body{
+      margin:0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Noto Sans KR", Arial, "Apple SD Gothic Neo", sans-serif;
+      background: radial-gradient(1200px 700px at 15% 15%, rgba(106,166,255,.25), transparent 60%),
+                  radial-gradient(900px 600px at 85% 10%, rgba(66,211,146,.18), transparent 55%),
+                  radial-gradient(900px 700px at 70% 85%, rgba(255,106,122,.16), transparent 55%),
+                  var(--bg);
+      color:var(--text);
+      min-height:100vh;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:28px;
+    }
+    .wrap{
+      width:min(980px, 100%);
+      display:grid;
+      grid-template-columns: 1.1fr .9fr;
+      gap:18px;
+    }
+    @media (max-width: 900px){
+      .wrap{ grid-template-columns: 1fr; }
+    }
+    .card{
+      background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
+      border:1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding:18px;
+      backdrop-filter: blur(8px);
+    }
+    h1{
+      margin:0 0 8px 0;
+      font-size:22px;
+      letter-spacing:-.3px;
+    }
+    .sub{
+      margin:0 0 16px 0;
+      color:var(--muted);
+      font-size:13px;
+      line-height:1.45;
+    }
+    label{
+      display:block;
+      font-size:12px;
+      color:var(--muted);
+      margin:12px 0 6px;
+    }
+    textarea, input[type="text"], input[type="number"], select{
+      width:100%;
+      background: rgba(0,0,0,.22);
+      border:1px solid rgba(255,255,255,.14);
+      color:var(--text);
+      border-radius: 12px;
+      padding:12px 12px;
+      outline:none;
+      transition: border .15s ease, transform .05s ease;
+    }
+    textarea{
+      min-height: 120px;
+      resize: vertical;
+      line-height:1.5;
+    }
+    textarea:focus, input:focus, select:focus{
+      border-color: rgba(106,166,255,.6);
+    }
+    .grid{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:12px;
+    }
+    .row{
+      display:flex;
+      gap:10px;
+      align-items:center;
+      flex-wrap:wrap;
+    }
+    .hint{
+      font-size:12px;
+      color:var(--muted);
+      margin-top:8px;
+    }
+    .btnbar{
+      display:flex;
+      gap:10px;
+      margin-top:14px;
+      flex-wrap:wrap;
+    }
+    button{
+      border:1px solid rgba(255,255,255,.16);
+      background: rgba(255,255,255,.06);
+      color:var(--text);
+      padding:10px 12px;
+      border-radius: 12px;
+      cursor:pointer;
+      transition: transform .06s ease, border .15s ease, background .15s ease;
+      font-weight:600;
+      letter-spacing:-.2px;
+    }
+    button:hover{
+      border-color: rgba(106,166,255,.6);
+      background: rgba(106,166,255,.12);
+    }
+    button:active{ transform: translateY(1px); }
+    .primary{
+      border-color: rgba(106,166,255,.55);
+      background: rgba(106,166,255,.18);
+    }
+    .primary:hover{
+      background: rgba(106,166,255,.26);
+    }
+    .danger{
+      border-color: rgba(255,106,122,.5);
+      background: rgba(255,106,122,.14);
+    }
+    .danger:hover{
+      background: rgba(255,106,122,.22);
+    }
+
+    .preview{
+      display:flex;
+      flex-direction:column;
+      gap:12px;
+      align-items:center;
+      justify-content:flex-start;
+    }
+    .qrbox{
+      width:100%;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:16px;
+      border-radius: 16px;
+      border:1px dashed rgba(255,255,255,.18);
+      background: rgba(0,0,0,.18);
+      min-height: 360px;
+      position:relative;
+      overflow:hidden;
+    }
+    canvas{
+      image-rendering: pixelated;
+      border-radius: 10px;
+      background: transparent;
+    }
+    .status{
+      width:100%;
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(0,0,0,.18);
+      border-radius: 14px;
+      padding:12px;
+      font-size:13px;
+      color:var(--muted);
+      line-height:1.45;
+    }
+    .status strong{ color:var(--text); }
+    .badge{
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      padding:3px 10px;
+      border-radius: 999px;
+      border:1px solid rgba(255,255,255,.14);
+      background: rgba(255,255,255,.06);
+      font-size:12px;
+      color:var(--muted);
+      margin-left:8px;
+    }
+    .ok{ color: var(--ok); }
+    .err{ color: var(--danger); }
+    .mini{
+      font-size:12px;
+      color:var(--muted);
+    }
+    .footer{
+      margin-top:10px;
+      font-size:12px;
+      color:var(--muted);
+      text-align:center;
+    }
+    input[type="color"]{
+      width:100%;
+      height:42px;
+      padding:6px;
+      border-radius: 12px;
+      border:1px solid rgba(255,255,255,.14);
+      background: rgba(0,0,0,.22);
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="card">
+      <h1>QR 코드 생성기</h1>
+      <p class="sub">
+        텍스트 또는 URL을 입력하고 QR 코드를 생성하세요. 크기, 여백, 에러 정정, 색상 등을 조절할 수 있습니다.
+      </p>
+
+      <label for="data">내용 (텍스트/URL)</label>
+      <textarea id="data" placeholder="예) https://example.com&#10;또는 임의의 문장"></textarea>
+
+      <div class="grid">
+        <div>
+          <label for="size">크기(px)</label>
+          <input id="size" type="number" min="128" max="1024" step="16" value="320" />
+        </div>
+        <div>
+          <label for="margin">여백(modules)</label>
+          <input id="margin" type="number" min="0" max="10" step="1" value="2" />
+        </div>
+
+        <div>
+          <label for="ecc">에러 정정(ECC)</label>
+          <select id="ecc">
+            <option value="L">L (약 7%)</option>
+            <option value="M" selected>M (약 15%)</option>
+            <option value="Q">Q (약 25%)</option>
+            <option value="H">H (약 30%)</option>
+          </select>
+        </div>
+        <div>
+          <label for="scale">스케일(배율)</label>
+          <input id="scale" type="number" min="1" max="16" step="1" value="8" />
+        </div>
+
+        <div>
+          <label for="fg">전경색(코드)</label>
+          <input id="fg" type="color" value="#111827" />
+        </div>
+        <div>
+          <label for="bg">배경색</label>
+          <input id="bg" type="color" value="#ffffff" />
+        </div>
+      </div>
+
+      <div class="btnbar">
+        <button class="primary" id="btnGenerate">QR 생성</button>
+        <button id="btnSample">샘플 입력</button>
+        <button id="btnClear" class="danger">초기화</button>
+        <button id="btnDownload">PNG 다운로드</button>
+      </div>
+
+      <div class="hint">
+        팁: 내용이 길수록 QR 버전이 커져(모듈 수 증가) 인식이 어려울 수 있습니다. 크기(px)를 키우거나 ECC를 낮춰 보세요.
+      </div>
+    </section>
+
+    <section class="card preview">
+      <div class="qrbox">
+        <canvas id="qrCanvas" width="320" height="320" aria-label="QR code canvas"></canvas>
+      </div>
+
+      <div class="status" id="status">
+        <strong>상태:</strong> 입력 후 <strong>QR 생성</strong>을 눌러주세요.
+        <span class="badge">오프라인 동작</span>
+      </div>
+
+      <div class="footer">
+        단일 HTML 파일로 구성 (CSS/JS 포함)
+      </div>
+    </section>
+  </div>
+
+  <script>
+    /*
+      QR Code generator (pure JS) using a minimal, MIT-like implementation approach.
+      This file embeds a compact QR algorithm (based on the well-known "qrcode-generator" style).
+      Features:
+        - ECC: L/M/Q/H
+        - Auto version selection
+        - Custom colors
+        - Canvas rendering
+        - PNG download
+    */
+
+    // ---------- Minimal QR implementation (qrcode-generator compatible subset) ----------
+    // NOTE: This is a compact implementation sufficient for common use cases.
+    // It supports byte mode (UTF-8) and auto version.
+
+    // Utilities
+    function toUtf8Bytes(str) {
+      // Encode string to UTF-8 bytes
+      const enc = new TextEncoder();
+      return Array.from(enc.encode(str));
+    }
+
+    // Galois field (GF(256)) helpers for Reed-Solomon
+    const QRMath = {
+      glog: new Array(256),
+      gexp: new Array(512),
+      init: function() {
+        let e = 1;
+        for (let i = 0; i < 256; i++) {
+          this.gexp[i] = e;
+          this.glog[e] = i;
+          e <<= 1;
+          if (e & 0x100) e ^= 0x11d;
+        }
+        for (let i = 256; i < 512; i++) this.gexp[i] = this.gexp[i - 256];
+      },
+      gexpFn: function(n) {
+        while (n < 0) n += 255;
+        while (n >= 256) n -= 255;
+        return this.gexp[n];
+      },
+      glogFn: function(n) {
+        if (n < 1) throw new Error("glog(" + n + ")");
+        return this.glog[n];
+      }
+    };
+    QRMath.init();
+
+    function qrPolynomial(num, shift) {
+      let offset = 0;
+      while (offset < num.length && num[offset] === 0) offset++;
+      const n = num.slice(offset);
+      const res = new Array(n.length + shift).fill(0);
+      for (let i = 0; i < n.length; i++) res[i] = n[i];
+      return {
+        get: (i) => res[i],
+        getLength: () => res.length,
+        multiply: (e) => {
+          const out = new Array(res.length + e.getLength() - 1).fill(0);
+          for (let i = 0; i < res.length; i++) {
+            for (let j = 0; j < e.getLength(); j++) {
+              out[i + j] ^= QRMath.gexpFn(QRMath.glogFn(res[i]) + QRMath.glogFn(e.get(j)));
+            }
+          }
+          return qrPolynomial(out, 0);
+        },
+        mod: (e) => {
+          if (res.length - e.getLength() < 0) return qrPolynomial(res, 0);
+          const ratio = QRMath.glogFn(res[0]) - QRMath.glogFn(e.get(0));
+          const out = res.slice();
+          for (let i = 0; i < e.getLength(); i++) {
+            out[i] ^= QRMath.gexpFn(QRMath.glogFn(e.get(i)) + ratio);
+          }
+          return qrPolynomial(out, 0).mod(e);
+        }
+      };
+    }
+
+    const QRErrorCorrectLevel = { L: 1, M: 0, Q: 3, H: 2 };
+
+    // RS block table (versions 1..10 for simplicity; enough for many use cases).
+    // If you need higher versions, extend this table.
+    // Format: [count, totalCount, dataCount] repeated...
+    const RS_BLOCK_TABLE = [
+      // 1
+      { L: [[1, 26, 19]], M: [[1, 26, 16]], Q: [[1, 26, 13]], H: [[1, 26, 9]] },
+      // 2
+      { L: [[1, 44, 34]], M: [[1, 44, 28]], Q: [[1, 44, 22]], H: [[1, 44, 16]] },
+      // 3
+      { L: [[1, 70, 55]], M: [[1, 70, 44]], Q: [[2, 35, 17]], H: [[2, 35, 13]] },
+      // 4
+      { L: [[1, 100, 80]], M: [[2, 50, 32]], Q: [[2, 50, 24]], H: [[4, 25, 9]] },
+      // 5
+      { L: [[1, 134, 108]], M: [[2, 67, 43]], Q: [[2, 33, 15],[2, 34, 16]], H: [[2, 33, 11],[2, 34, 12]] },
+      // 6
+      { L: [[2, 86, 68]], M: [[4, 43, 27]], Q: [[4, 43, 19]], H: [[4, 43, 15]] },
+      // 7
+      { L: [[2, 98, 78]], M: [[4, 49, 31]], Q: [[2, 32, 14],[4, 33, 15]], H: [[4, 39, 13],[1, 40, 14]] },
+      // 8
+      { L: [[2, 121, 97]], M: [[2, 60, 38],[2, 61, 39]], Q: [[4, 40, 18],[2, 41, 19]], H: [[4, 40, 14],[2, 41, 15]] },
+      // 9
+      { L: [[2, 146, 116]], M: [[3, 58, 36],[2, 59, 37]], Q: [[4, 36, 16],[4, 37, 17]], H: [[4, 36, 12],[4, 37, 13]] },
+      // 10
+      { L: [[2, 174, 138]], M: [[4, 69, 43],[1, 70, 44]], Q: [[6, 43, 19],[2, 44, 20]], H: [[6, 43, 15],[2, 44, 16]] }
+    ];
+
+    function getRSBlocks(typeNumber, errorCorrectLevelChar) {
+      const entry = RS_BLOCK_TABLE[typeNumber - 1];
+      if (!entry) throw new Error("지원하지 않는 버전입니다. (현재 1~10 지원)");
+      const list = entry[errorCorrectLevelChar];
+      const blocks = [];
+      for (const triple of list) {
+        const [count, totalCount, dataCount] = triple;
+        for (let i = 0; i < count; i++) blocks.push({ totalCount, dataCount });
+      }
+      return blocks;
+    }
+
+    // Bit buffer
+    function QRBitBuffer() {
+      const buffer = [];
+      let length = 0;
+      return {
+        put: function(num, len) {
+          for (let i = 0; i < len; i++) this.putBit(((num >>> (len - i - 1)) & 1) === 1);
+        },
+        putBit: function(bit) {
+          const bufIndex = Math.floor(length / 8);
+          if (buffer.length <= bufIndex) buffer.push(0);
+          if (bit) buffer[bufIndex] |= (0x80 >>> (length % 8));
+          length++;
+        },
+        getBuffer: () => buffer,
+        getLengthInBits: () => length
+      };
+    }
+
+    // QR8bitByte
+    function QR8bitByte(dataBytes) {
+      return {
+        mode: 4, // byte mode
+        getLength: () => dataBytes.length,
+        write: function(buffer) {
+          for (let i = 0; i < dataBytes.length; i++) buffer.put(dataBytes[i], 8);
+        }
+      };
+    }
+
+    const QRUtil = {
+      PATTERN_POSITION_TABLE: [
+        [],
+        [6, 18],
+        [6, 22],
+        [6, 26],
+        [6, 30],
+        [6, 34],
+        [6, 22, 38],
+        [6, 24, 42],
+        [6, 26, 46],
+        [6, 28, 50],
+        [6, 30, 54]
+      ],
+      getPatternPosition: function(typeNumber) {
+        return this.PATTERN_POSITION_TABLE[typeNumber] || [];
+      },
+      getBCHTypeInfo: function(data) {
+        let d = data << 10;
+        const g = 0b10100110111;
+        while (this.getBCHDigit(d) - this.getBCHDigit(g) >= 0) {
+          d ^= (g << (this.getBCHDigit(d) - this.getBCHDigit(g)));
+        }
+        return ((data << 10) | d) ^ 0b101010000010010;
+      },
+      getBCHDigit: function(data) {
+        let digit = 0;
+        while (data !== 0) {
+          digit++;
+          data >>>= 1;
+        }
+        return digit;
+      },
+      getMask: function(maskPattern, i, j) {
+        switch (maskPattern) {
+          case 0: return (i + j) % 2 === 0;
+          case 1: return i % 2 === 0;
+          case 2: return j % 3 === 0;
+          case 3: return (i + j) % 3 === 0;
+          case 4: return (Math.floor(i / 2) + Math.floor(j / 3)) % 2 === 0;
+          case 5: return (i * j) % 2 + (i * j) % 3 === 0;
+          case 6: return ((i * j) % 2 + (i * j) % 3) % 2 === 0;
+          case 7: return ((i * j) % 3 + (i + j) % 2) % 2 === 0;
+          default: throw new Error("bad maskPattern:" + maskPattern);
+        }
+      }
+    };
+
+    function createData(typeNumber, errorCorrectLevelChar, dataObj) {
+      const rsBlocks = getRSBlocks(typeNumber, errorCorrectLevelChar);
+      const buffer = QRBitBuffer();
+      // Mode indicator (byte)
+      buffer.put(0b0100, 4);
+
+      // Char count indicator length for byte mode: depends on version
+      const lenBits = (typeNumber <= 9) ? 8 : 16;
+      buffer.put(dataObj.getLength(), lenBits);
+
+      dataObj.write(buffer);
+
+      // Terminator
+      const totalDataCount = rsBlocks.reduce((s, b) => s + b.dataCount, 0);
+      const totalBits = totalDataCount * 8;
+
+      if (buffer.getLengthInBits() + 4 <= totalBits) buffer.put(0, 4);
+
+      // Padding to byte
+      while (buffer.getLengthInBits() % 8 !== 0) buffer.putBit(false);
+
+      // Pad bytes
+      const padBytes = [0xEC, 0x11];
+      let i = 0;
+      while (buffer.getBuffer().length < totalDataCount) {
+        buffer.put(padBytes[i % 2], 8);
+        i++;
+      }
+
+      // Create bytes and add RS error correction
+      const dataBytes = buffer.getBuffer();
+
+      let offset = 0;
+      const dcdata = [];
+      const ecdata = [];
+      let maxDcCount = 0;
+      let maxEcCount = 0;
+
+      for (let r = 0; r < rsBlocks.length; r++) {
+        const dcCount = rsBlocks[r].dataCount;
+        const ecCount = rsBlocks[r].totalCount - dcCount;
+
+        maxDcCount = Math.max(maxDcCount, dcCount);
+        maxEcCount = Math.max(maxEcCount, ecCount);
+
+        dcdata[r] = new Array(dcCount);
+        for (let i = 0; i < dcdata[r].length; i++) dcdata[r][i] = dataBytes[i + offset];
+        offset += dcCount;
+
+        const rsPoly = (function(ecCount) {
+          let poly = qrPolynomial([1], 0);
+          for (let i = 0; i < ecCount; i++) {
+            poly = poly.multiply(qrPolynomial([1, QRMath.gexpFn(i)], 0));
+          }
+          return poly;
+        })(ecCount);
+
+        const rawPoly = qrPolynomial(dcdata[r], rsPoly.getLength() - 1);
+        const modPoly = rawPoly.mod(rsPoly);
+
+        ecdata[r] = new Array(rsPoly.getLength() - 1).fill(0);
+        const modLen = modPoly.getLength();
+        for (let i = 0; i < ecdata[r].length; i++) {
+          const modIndex = i + modLen - ecdata[r].length;
+          ecdata[r][i] = (modIndex >= 0) ? modPoly.get(modIndex) : 0;
+        }
+      }
+
+      const totalCodeCount = rsBlocks.reduce((s, b) => s + b.totalCount, 0);
+      const data = new Array(totalCodeCount);
+      let idx = 0;
+
+      for (let i = 0; i < maxDcCount; i++) {
+        for (let r = 0; r < rsBlocks.length; r++) {
+          if (i < dcdata[r].length) data[idx++] = dcdata[r][i];
+        }
+      }
+      for (let i = 0; i < maxEcCount; i++) {
+        for (let r = 0; r < rsBlocks.length; r++) {
+          if (i < ecdata[r].length) data[idx++] = ecdata[r][i];
+        }
+      }
+      return data;
+    }
+
+    function QRCodeModel(typeNumber, errorCorrectLevelChar) {
+      const PAD0 = 0xEC, PAD1 = 0x11;
+
+      let modules = null;
+      let moduleCount = 0;
+      let dataCache = null;
+      let dataObj = null;
+
+      function setupPositionProbePattern(row, col) {
+        for (let r = -1; r <= 7; r++) {
+          if (row + r <= -1 || moduleCount <= row + r) continue;
+          for (let c = -1; c <= 7; c++) {
+            if (col + c <= -1 || moduleCount <= col + c) continue;
+            if ((0 <= r && r <= 6 && (c === 0 || c === 6)) ||
+                (0 <= c && c <= 6 && (r === 0 || r === 6)) ||
+                (2 <= r && r <= 4 && 2 <= c && c <= 4)) {
+              modules[row + r][col + c] = true;
+            } else {
+              modules[row + r][col + c] = false;
+            }
+          }
+        }
+      }
+
+      function setupTimingPattern() {
+        for (let i = 8; i < moduleCount - 8; i++) {
+          if (modules[i][6] !== null) continue;
+          modules[i][6] = (i % 2 === 0);
+        }
+        for (let i = 8; i < moduleCount - 8; i++) {
+          if (modules[6][i] !== null) continue;
+          modules[6][i] = (i % 2 === 0);
+        }
+      }
+
+      function setupPositionAdjustPattern() {
+        const pos = QRUtil.getPatternPosition(typeNumber);
+        for (let i = 0; i < pos.length; i++) {
+          for (let j = 0; j < pos.length; j++) {
+            const row = pos[i];
+            const col = pos[j];
+            if (modules[row][col] !== null) continue;
+
+            for (let r = -2; r <= 2; r++) {
+              for (let c = -2; c <= 2; c++) {
+                if (r === -2 || r === 2 || c === -2 || c === 2 ||
+                    (r === 0 && c === 0)) {
+                  modules[row + r][col + c] = true;
+                } else {
+                  modules[row + r][col + c] = false;
+                }
+              }
+            }
+          }
+        }
+      }
+
+      function setupTypeInfo(test, maskPattern) {
+        const data = (QRErrorCorrectLevel[errorCorrectLevelChar] << 3) | maskPattern;
+        const bits = QRUtil.getBCHTypeInfo(data);
+
+        // vertical
+        for (let i = 0; i < 15; i++) {
+          const mod = (!test && ((bits >> i) & 1) === 1);
+          if (i < 6) modules[i][8] = mod;
+          else if (i < 8) modules[i + 1][8] = mod;
+          else modules[moduleCount - 15 + i][8] = mod;
+        }
+
+        // horizontal
+        for (let i = 0; i < 15; i++) {
+          const mod = (!test && ((bits >> i) & 1) === 1);
+          if (i < 8) modules[8][moduleCount - i - 1] = mod;
+          else if (i < 9) modules[8][15 - i - 1 + 1] = mod;
+          else modules[8][15 - i - 1] = mod;
+        }
+
+        modules[moduleCount - 8][8] = (!test);
+      }
+
+      function mapData(data, maskPattern) {
+        let inc = -1;
+        let row = moduleCount - 1;
+        let bitIndex = 7;
+        let byteIndex = 0;
+
+        for (let col = moduleCount - 1; col > 0; col -= 2) {
+          if (col === 6) col--;
+
+          while (true) {
+            for (let c = 0; c < 2; c++) {
+              if (modules[row][col - c] === null) {
+                let dark = false;
+                if (byteIndex < data.length) {
+                  dark = (((data[byteIndex] >>> bitIndex) & 1) === 1);
+                }
+                const mask = QRUtil.getMask(maskPattern, row, col - c);
+                modules[row][col - c] = mask ? !dark : dark;
+
+                bitIndex--;
+                if (bitIndex === -1) {
+                  byteIndex++;
+                  bitIndex = 7;
+                }
+              }
+            }
+            row += inc;
+            if (row < 0 || moduleCount <= row) {
+              row -= inc;
+              inc = -inc;
+              break;
+            }
+          }
+        }
+      }
+
+      function makeImpl(test, maskPattern) {
+        moduleCount = typeNumber * 4 + 17;
+        modules = new Array(moduleCount);
+        for (let r = 0; r < moduleCount; r++) {
+          modules[r] = new Array(moduleCount).fill(null);
+        }
+
+        setupPositionProbePattern(0, 0);
+        setupPositionProbePattern(moduleCount - 7, 0);
+        setupPositionProbePattern(0, moduleCount - 7);
+
+        setupTimingPattern();
+        setupPositionAdjustPattern();
+        setupTypeInfo(test, maskPattern);
+
+        if (dataCache === null) dataCache = createData(typeNumber, errorCorrectLevelChar, dataObj);
+
+        mapData(dataCache, maskPattern);
+      }
+
+      function getBestMaskPattern() {
+        // Simple approach: pick mask 0 (for speed). For higher quality, compute penalty.
+        // Keeping it compact for a single-file demo.
+        return 0;
+      }
+
+      return {
+        addData: function(bytes) {
+          dataObj = QR8bitByte(bytes);
+          dataCache = null;
+        },
+        isDark: function(row, col) {
+          if (modules[row][col] === null) return false;
+          return modules[row][col];
+        },
+        getModuleCount: function() { return moduleCount; },
+        make: function() {
+          makeImpl(false, getBestMaskPattern());
+        }
+      };
+    }
+
+    function chooseTypeNumber(dataBytes, eccChar) {
+      // Try versions 1..10; pick first that fits
+      for (let v = 1; v <= 10; v++) {
+        try {
+          const rs = getRSBlocks(v, eccChar);
+          const totalDataCount = rs.reduce((s, b) => s + b.dataCount, 0);
+          // Buffer bits: mode(4) + length + data
+          const lenBits = (v <= 9) ? 8 : 16;
+          const neededBits = 4 + lenBits + (dataBytes.length * 8);
+          const capacityBits = totalDataCount * 8;
+          if (neededBits <= capacityBits) return v;
+        } catch (_) { /* ignore */ }
+      }
+      throw new Error("데이터가 너무 깁니다. (현재 버전 1~10 지원) 내용을 줄이거나 ECC를 낮춰보세요.");
+    }
+
+    // ---------- Rendering ----------
+    function drawToCanvas(qr, canvas, opts) {
+      const { sizePx, margin, fg, bg } = opts;
+      const ctx = canvas.getContext("2d");
+
+      const count = qr.getModuleCount();
+      const totalModules = count + margin * 2;
+
+      // Set canvas size
+      canvas.width = sizePx;
+      canvas.height = sizePx;
+
+      // Clear background
+      ctx.fillStyle = bg;
+      ctx.fillRect(0, 0, sizePx, sizePx);
+
+      const moduleSize = sizePx / totalModules;
+
+      ctx.fillStyle = fg;
+      for (let r = 0; r < count; r++) {
+        for (let c = 0; c < count; c++) {
+          if (qr.isDark(r, c)) {
+            const x = (c + margin) * moduleSize;
+            const y = (r + margin) * moduleSize;
+            // Use crisp edges
+            ctx.fillRect(Math.round(x), Math.round(y),
+                         Math.ceil(moduleSize), Math.ceil(moduleSize));
+          }
+        }
+      }
+    }
+
+    function downloadCanvasPng(canvas, filename) {
+      const a = document.createElement("a");
+      a.href = canvas.toDataURL("image/png");
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    }
+
+    // ---------- UI logic ----------
+    const elData = document.getElementById("data");
+    const elSize = document.getElementById("size");
+    const elMargin = document.getElementById("margin");
+    const elEcc = document.getElementById("ecc");
+    const elScale = document.getElementById("scale");
+    const elFg = document.getElementById("fg");
+    const elBg = document.getElementById("bg");
+    const canvas = document.getElementById("qrCanvas");
+    const status = document.getElementById("status");
+
+    function setStatus(ok, msg, extra) {
+      status.innerHTML = `<strong>상태:</strong> ${msg}
+        <span class="badge ${ok ? "ok" : "err"}">${ok ? "OK" : "ERROR"}</span>
+        ${extra ? `<div class="mini" style="margin-top:8px;">${extra}</div>` : ""}`;
+    }
+
+    function generate() {
+      const text = elData.value.trim();
+      if (!text) {
+        setStatus(false, "내용이 비어 있습니다. 텍스트 또는 URL을 입력하세요.");
+        return;
+      }
+
+      const sizePx = clampInt(parseInt(elSize.value, 10), 128, 2048, 320);
+      const margin = clampInt(parseInt(elMargin.value, 10), 0, 20, 2);
+      const ecc = elEcc.value;
+      const fg = elFg.value;
+      const bg = elBg.value;
+
+      // scale is kept for future extension; for now sizePx controls final output
+      const scale = clampInt(parseInt(elScale.value, 10), 1, 32, 8);
+
+      try {
+        const bytes = toUtf8Bytes(text);
+        const typeNumber = chooseTypeNumber(bytes, ecc);
+
+        const qr = QRCodeModel(typeNumber, ecc);
+        qr.addData(bytes);
+        qr.make();
+
+        drawToCanvas(qr, canvas, { sizePx, margin, fg, bg });
+
+        setStatus(true, "QR 코드 생성 완료.",
+          `버전: <strong>${typeNumber}</strong> · 모듈: <strong>${qr.getModuleCount()}×${qr.getModuleCount()}</strong> · ECC: <strong>${ecc}</strong> · 내용 바이트: <strong>${bytes.length}</strong>`);
+      } catch (e) {
+        setStatus(false, "생성에 실패했습니다.", escapeHtml(String(e.message || e)));
+      }
+    }
+
+    function clampInt(v, min, max, fallback) {
+      if (!Number.isFinite(v)) return fallback;
+      return Math.max(min, Math.min(max, v));
+    }
+
+    function escapeHtml(s){
+      return s.replace(/[&<>"']/g, (m) => ({
+        "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+      }[m]));
+    }
+
+    document.getElementById("btnGenerate").addEventListener("click", generate);
+    document.getElementById("btnSample").addEventListener("click", () => {
+      elData.value = "https://example.com\n\n메모: QR 코드 생성기 테스트입니다.\n- 크기와 여백을 조절해보세요.\n- 색상도 바꿀 수 있습니다.";
+      generate();
+    });
+    document.getElementById("btnClear").addEventListener("click", () => {
+      elData.value = "";
+      setStatus(true, "입력 후 QR 생성을 눌러주세요.");
+      const ctx = canvas.getContext("2d");
+      canvas.width = parseInt(elSize.value || "320", 10);
+      canvas.height = canvas.width;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    });
+    document.getElementById("btnDownload").addEventListener("click", () => {
+      const text = elData.value.trim();
+      if (!text) {
+        setStatus(false, "다운로드 전에 QR을 먼저 생성하세요.");
+        return;
+      }
+      downloadCanvasPng(canvas, "qr-code.png");
+      setStatus(true, "PNG 다운로드를 시작했습니다.");
+    });
+
+    // Optional: auto-generate on Ctrl+Enter
+    elData.addEventListener("keydown", (e) => {
+      if (e.ctrlKey && e.key === "Enter") generate();
+    });
+
+    // Initial blank canvas fill
+    (function init(){
+      const ctx = canvas.getContext("2d");
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    })();
+  </script>
+</body>
+</html>
